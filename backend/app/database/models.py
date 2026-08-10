@@ -2,6 +2,9 @@ from sqlalchemy import Column
 from sqlalchemy import Integer
 from sqlalchemy import String
 from sqlalchemy import Float
+from sqlalchemy import DateTime
+
+from datetime import datetime
 
 from app.database.db import Base
 
@@ -33,4 +36,9 @@ class ThreatLog(Base):
 
     recommendation = Column(
         String
+    )
+
+    created_at = Column(
+        DateTime,
+        default=datetime.utcnow
     )

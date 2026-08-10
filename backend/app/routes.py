@@ -3,6 +3,9 @@ from fastapi import APIRouter
 from app.database.db import SessionLocal
 from app.database.models import ThreatLog
 
+import random
+from datetime import datetime
+
 router = APIRouter()
 
 
@@ -30,7 +33,8 @@ def threat_history():
             "confidence": log.confidence,
             "severity": log.severity,
             "risk_score": log.risk_score,
-            "recommendation": log.recommendation
+            "recommendation": log.recommendation,
+            "created_at": log.created_at.isoformat() if log.created_at else None
         })
 
     db.close()
@@ -194,3 +198,73 @@ def threat_trend():
     db.close()
 
     return trend
+
+
+@router.post("/simulate-threat")
+def simulate_threat():
+    """
+    Generates a random synthetic threat and saves it to the database.
+    Useful for testing the Live Threat Feed without running the packet monitor.
+    """
+
+    attack_types = [
+        "DoS", "Reconnaissance", "Exploits",
+        "Generic", "Fuzzers", "Backdoor",
+        "Shellcode", "Worms", "Analysis", "Normal"
+    ]
+
+    recommendations = {
+        "Normal": "No threat detected.",
+        "DoS": "Enable rate limiting and block suspicious IPs.",
+        "Reconnaissance": "Investigate network scanning activity.",
+        "Exploits": "Patch vulnerable services immediately.",
+        "Generic": "Review traffic anomalies and logs.",
+        "Fuzzers": "Inspect malformed packet sources.",
+        "Backdoor": "Isolate affected systems and scan for malware.",
+        "Shellcode": "Run endpoint security scans immediately.",
+        "Worms": "Disconnect infected hosts from the network.",
+        "Analysis": "Perform deeper forensic investigation."
+    }
+
+    attack_type = random.choice(attack_types)
+    confidence = round(random.uniform(50.0, 99.9), 2)
+
+    if attack_type == "Normal":
+        severity = "Low"
+    elif confidence >= 90:
+        severity = "Critical"
+    elif confidence >= 75:
+        severity = "High"
+    elif confidence >= 50:
+        severity = "Medium"
+    else:
+        severity = "Low"
+
+    risk_score = round(confidence * 0.9)
+    recommendation = recommendations.get(attack_type, "Monitor network activity.")
+
+    db = SessionLocal()
+
+    log = ThreatLog(
+        attack_type=attack_type,
+        confidence=confidence,
+        severity=severity,
+        risk_score=risk_score,
+        recommendation=recommendation,
+        created_at=datetime.utcnow()
+    )
+
+    db.add(log)
+    db.commit()
+    db.refresh(log)
+    db.close()
+
+    return {
+        "id": log.id,
+        "attack_type": log.attack_type,
+        "confidence": log.confidence,
+        "severity": log.severity,
+        "risk_score": log.risk_score,
+        "recommendation": log.recommendation,
+        "created_at": log.created_at.isoformat()
+    }
